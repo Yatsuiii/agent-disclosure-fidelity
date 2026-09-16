@@ -1,0 +1,10 @@
+suts/
+__pycache__/
+*.pyc
+.venv/
+.venvs/
+.worktrees/
+.uv-cache/
+.pytest_cache/
+.ruff_cache/
+results/
