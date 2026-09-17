@@ -6,6 +6,7 @@ asks for. Run explicitly: `pytest tests/test_arming_gate.py -v`.
 """
 
 from shutdown_integrity import runner
+from shutdown_integrity.adapters.mcp_python.harness import REJECTED_CONNECT_HARNESS
 from shutdown_integrity.scenarios.mcp_python import SCENARIO_REJECTED_CONNECT
 from shutdown_integrity.verdict import Verdict
 
@@ -25,7 +26,9 @@ def test_negative_control_trips_the_gate():
     broken fixture, where a real residual exists, so a false PASS here can
     only come from broken attribution, never from a coincidentally clean SDK.
     """
-    gate_tripped = runner.arm_negative_control(SCENARIO_REJECTED_CONNECT, trials=2, settle_deadline_s=_SETTLE_DEADLINE_S)
+    gate_tripped = runner.arm_negative_control(
+        SCENARIO_REJECTED_CONNECT, REJECTED_CONNECT_HARNESS, trials=2, settle_deadline_s=_SETTLE_DEADLINE_S
+    )
     assert gate_tripped
 
 
@@ -33,7 +36,9 @@ def test_scenario_arms_against_both_controls():
     """HANDOFF.md acceptance gate 1: FAIL against unpatched main in 10/10,
     PASS against main+pr3502 in 10/10, zero flakiness either direction.
     """
-    armed = runner.arm(SCENARIO_REJECTED_CONNECT, trials=10, settle_deadline_s=_SETTLE_DEADLINE_S)
+    armed = runner.arm(
+        SCENARIO_REJECTED_CONNECT, REJECTED_CONNECT_HARNESS, trials=10, settle_deadline_s=_SETTLE_DEADLINE_S
+    )
     assert armed
 
 
@@ -42,7 +47,11 @@ def test_run_against_broken_control_reports_fail_with_evidence():
     residual PIDs with cmdlines, timings, and a working one-line repro.
     """
     result = runner.run(
-        SCENARIO_REJECTED_CONNECT, SCENARIO_REJECTED_CONNECT.broken_control, trials=3, settle_deadline_s=_SETTLE_DEADLINE_S
+        SCENARIO_REJECTED_CONNECT,
+        SCENARIO_REJECTED_CONNECT.broken_control,
+        REJECTED_CONNECT_HARNESS,
+        trials=3,
+        settle_deadline_s=_SETTLE_DEADLINE_S,
     )
     assert result.verdict == Verdict.FAIL
     assert result.trials
@@ -59,7 +68,11 @@ def test_run_against_broken_control_reports_fail_with_evidence():
 
 def test_run_against_fixed_control_reports_pass():
     result = runner.run(
-        SCENARIO_REJECTED_CONNECT, SCENARIO_REJECTED_CONNECT.fixed_control, trials=3, settle_deadline_s=_SETTLE_DEADLINE_S
+        SCENARIO_REJECTED_CONNECT,
+        SCENARIO_REJECTED_CONNECT.fixed_control,
+        REJECTED_CONNECT_HARNESS,
+        trials=3,
+        settle_deadline_s=_SETTLE_DEADLINE_S,
     )
     assert result.verdict == Verdict.PASS
     for trial in result.trials:

@@ -5,6 +5,9 @@ __pycache__/
 .venvs/
 .worktrees/
 .uv-cache/
+.npm-cache/
+.pnpm-store/
+node_modules/
 .pytest_cache/
 .ruff_cache/
 results/

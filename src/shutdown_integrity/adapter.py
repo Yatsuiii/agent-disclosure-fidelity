@@ -88,10 +88,19 @@ class SubprocessAdapter:
     plain terminate() would be an insufficient hygiene step.
     """
 
-    def __init__(self, adapter_id: str, python: str | Path, script: str | Path, trial_tag: str) -> None:
+    def __init__(
+        self,
+        adapter_id: str,
+        python: str | Path,
+        script: str | Path,
+        trial_tag: str,
+        extra_env: dict[str, str] | None = None,
+    ) -> None:
         self.adapter_id = adapter_id
         env = os.environ.copy()
         env["SHUTDOWN_INTEGRITY_TRIAL"] = trial_tag
+        if extra_env:
+            env.update(extra_env)
         self._proc = subprocess.Popen(
             [str(python), str(script)],
             stdin=subprocess.PIPE,
