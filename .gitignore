@@ -11,3 +11,5 @@ node_modules/
 .pytest_cache/
 .ruff_cache/
 results/
+.claude/settings.local.json
+pilot_runs/
