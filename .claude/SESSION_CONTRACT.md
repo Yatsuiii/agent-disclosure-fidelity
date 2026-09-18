@@ -1,18 +1,23 @@
 # Session Contract
 
-Objective: Build the TypeScript SDK adapter and arm a scenario for
-typescript-sdk#2023 (`StdioClientTransport.close()` does not kill the process
-tree, leaving orphan processes) end to end, reusing the existing runner,
-ProcessTreeProbe, and JSON control protocol unchanged. Per the prior
-checkpoint's decision record: this is the highest-leverage next step because
-it tests both of v1's real claims at once (the failure class is systemic
-across SDKs, one instrument measures it uniformly) with zero new probe work,
-and it closes HANDOFF.md's still-open acceptance gate 2 (grandchild detection)
-on real code instead of only a synthetic `sh -c` fixture. Citation for #2023
-is verified this session before any build (see Baseline); its fixed control
-(PR #2024) is sourced the same way PR #3502 and PR #3218 were: read directly,
-applies cleanly to the pinned commit, closed-unmerged rather than rejected on
-merit.
+Objective: The discovery run. Both armed scenarios so far (mcp-py#3490,
+ts#2023) are rediscoveries of bugs someone already filed; the instrument has
+never been pointed at a codebase where nobody has. Confirm candidate targets
+by local grep (not GitHub code search, which rate-limits inconsistently),
+classify each as a discovery target (spawns its own processes) vs. an
+inherited-behavior cell (delegates to a Python or TS MCP SDK), find whether
+each target states a teardown contract at all, and only then build an
+adapter and arm a scenario per confirmed target. Report a target x scenario
+x verdict matrix with evidence bundles. File nothing anywhere.
+
+Precommitted kill condition, binding: if four independent codebases yield
+zero novel findings, that is the real answer, not a failure. It means the
+bug class concentrates in shared dependencies (the MCP SDKs) rather than
+scattering across projects that build on them, and this instrument is a
+verifier, not a discovery engine, for that population. In that case stop,
+say so plainly, and do not propose a fifth target to manufacture a finding.
+The artifact becomes the methodology plus the Python/TypeScript divergence
+result already in hand, not a new bug.
 
 Branch: master
 
@@ -20,100 +25,116 @@ Parent: HEAD
 
 Allowed files:
 - .claude/SESSION_CONTRACT.md
-- src/shutdown_integrity/scenarios/typescript_sdk.py (new: the #2023 scenario
-  declaration, mirroring scenarios/mcp_python.py's shape)
-- src/shutdown_integrity/adapters/typescript_sdk/** (new: the Node adapter
-  subprocess speaking the same NDJSON wire protocol as adapter_main.py, and
-  its two fixture stdio servers)
-- src/shutdown_integrity/runner.py: generalizing to an adapter-agnostic
-  `AdapterHarness` Protocol turned out to be necessary, not optional. The
-  existing runner hardcoded MCP-python paths (`_ADAPTER_SCRIPT`,
-  `_LIBRARY_SERVER`, `_WEB_SERVER`) directly into its trial functions; a
-  second adapter family cannot be added without either duplicating the whole
-  trial/arm/run machinery or extracting that per-adapter glue behind a small
-  shared interface. Chose the latter (DESIGN.md's own stated goal: "adding a
-  framework is a day of work"). Scenario 1's behavior, gates, and evidence
-  output must be bit-for-bit unaffected by this refactor.
-- src/shutdown_integrity/adapter.py: `SubprocessAdapter` needs an optional
-  `extra_env` constructor param so the TypeScript harness can pass
-  `SHUTDOWN_INTEGRITY_SUT_ROOT` without changing the wire protocol or any
-  existing call site's behavior.
-- src/shutdown_integrity/adapters/mcp_python/harness.py (new): extracts the
-  existing inline MCP-python glue (adapter script path, fixture server paths,
-  spec-building, residual filter, repro command) out of runner.py into the
-  Protocol shape the generalized runner now consumes. Scenario 1's own files
-  (adapter_main.py, fixtures/, scenarios/mcp_python.py) stay untouched.
-- src/shutdown_integrity/sut.py: adds `prepare_node()` and a generic worktree
-  helper shared with the existing Python `prepare()`, which now delegates to
-  it instead of duplicating the git-worktree logic. `prepare()`'s own
-  behavior and return type for existing callers are unchanged.
-- patches/pr2024-kill-process-tree-on-close.patch
-- tests/test_typescript_adapter.py (new, mirroring test_arming_gate.py)
-- tests/test_arming_gate.py: call sites only, updated for the new `harness`
-  parameter runner.py's generalization requires. Scenario 1's assertions and
-  acceptance-gate coverage must not change.
-- .gitignore (node_modules/, pnpm store, npm cache, if not already covered)
+- suts/** (new shallow clones only, gitignored already by the existing
+  `suts/` pattern; read-only reference once cloned, never edited)
+- src/shutdown_integrity/scenarios/discovery.py or scenarios/<target>.py
+  (new: scenario declarations for confirmed discovery targets only)
+- src/shutdown_integrity/adapters/<target>/** (new: one adapter subprocess
+  plus harness per confirmed discovery target, reusing the existing
+  AdapterHarness Protocol in runner.py unchanged)
+- src/shutdown_integrity/runner.py (only if a genuinely new teardown_mode
+  shape is needed that the existing ERROR_DURING_SETUP / graceful-close
+  branches cannot express; prefer fitting the existing shapes)
+- src/shutdown_integrity/sut.py: adds a `prepare_smithery_cli()` (or
+  similarly named) function reusing the existing `_prepare_worktree` helper,
+  for a single-package pnpm project run via `tsx` directly (no build step,
+  unlike the TS SDK's tsdown-built packages). `prepare()` and `prepare_node()`
+  and their existing callers are unchanged.
+- patches/** (constructed fixed-control patches, named to say so, e.g.
+  `constructed-<target>-process-group-teardown.patch`, distinct from
+  upstream-sourced patches like pr3502/pr3218/pr2024)
+- tests/test_discovery_<target>.py (new, mirroring test_arming_gate.py's
+  shape: negative control, arm, evidence-bundle run)
+- DISCOVERY.md (new: the target x scenario x verdict matrix and the
+  contract-citation record per target; this is the step 4 report artifact)
+- .gitignore (only if a new build-artifact directory needs covering)
 
 Non-goals:
-- No changes to the MCP Python SDK adapter, probes, or SCENARIO_REJECTED_CONNECT.
-- No changes to SCENARIO_SHUTDOWN_DRAIN or any FdSocketProbe/behavioral-probe
-  work; that remains a separate, un-checkpointed decision.
-- No edits to suts/typescript-sdk once cloned and pinned.
-- No GitHub writes: read-only `gh issue view` / `gh pr view` / `gh pr diff`
-  only, to verify the citation and source the patch.
-- No system-wide npm/pnpm install. pnpm runs via `npx pnpm@<pinned-version>`;
-  its store and npm's own cache are pinned under the repo (Windows mount),
-  never left to default to a home-directory or root-fs location.
-- Root filesystem stays untouched: `df -h /` had ~5.8G free at last check.
-  Every clone, node_modules, and cache directory must resolve under
+- No changes to the MCP Python or TypeScript SDK adapters, harnesses,
+  scenarios, or their tests. Those two scenarios stay exactly as armed.
+- No edits to any suts/<target> checkout once cloned.
+- No GitHub writes anywhere: read-only `gh issue view` / `gh pr view` /
+  `gh pr diff` / `gh api` only, for prior-art search and citation
+  verification. No issues, comments, or pull requests, on any repo, ever,
+  regardless of what a FAIL trial finds.
+- No system-wide dependency installs. Per-target environments (venv, pnpm
+  install+build) follow the exact pattern already proven in sut.py:
+  isolated, cache pinned to the Windows mount, never touching root.
+- Root filesystem stays untouched. `df -h /` had ~5.7G free at last check;
+  every clone, venv, node_modules, and cache directory resolves under
   /run/media/Yatsuiii/Windows-SSD/raghav-research/shutdown-integrity.
+- Do not arm a scenario whose contract citation is not verified=True against
+  a primary source read this session. An unverified or invented expectation
+  gets CONTRACT_UNCLEAR, never FAIL.
+- Do not report a FAIL as novel without a prior-art search (issues AND pull
+  requests, both open and closed) on that specific repo first.
 
-Baseline: typescript-sdk#2023 read directly via `gh issue view` this session:
-title "StdioClientTransport.close() does not kill the process tree, leaving
-orphan processes", root cause is `ChildProcess.kill()` only signaling the
-direct child PID, confirmed against `packages/client/src/client/stdio.ts` in
-the SUT once cloned. Fixed control: PR #2024 ("fix: kill process tree on
-StdioClientTransport.close()"), closed unmerged 2026-06-22, unconditional
-fix (process-group kill on POSIX, `taskkill /T /F` on Windows), 7 new tests
-including multi-level grandchild kill. A second candidate, PR #2596, makes the
-same fix opt-in via a new `killProcessTree` option (default false) rather than
-fixing close() unconditionally; #2024 is preferred as the fixed control
-because it needs no adapter-side config to activate, matching how PR #3502
-and PR #3218 were used as unconditional fixes in the prior scenarios.
-Not yet checked this session: whether PR #2024's diff still applies cleanly
-to typescript-sdk's current main (b654261, 2026-09-11) — verify before
-declaring contract.verified=True and before relying on it as the fixed
-control; if it has drifted, the citation is still valid but the patch needs
-hand-adaptation, which must be flagged rather than silently forced.
+Baseline: two prior checkpoints exist (commits 6962a9e, d25ba10). A third
+checkpoint (DISCOVERY.md, staged not yet committed as this contract is
+written) classified four candidates: adk-python and openai-agents-python are
+PASS-by-delegation cells (both call the real, already-verified-correct
+`mcp.client.stdio.stdio_client` directly); inspector was dropped (delegates
+to the already-armed TS SDK, not novel); `arcadeai-labs/smithery-cli`
+(formerly `smithery-ai/cli`, GitHub redirects the old name; confirmed via
+`gh repo view`) hand-rolls its own spawn/close in `src/lib/uplink.ts` with no
+stated contract, and a faithful line-cited reproduction (not the SUT's own
+code, since the function is module-private) showed two real, prior-art-clear
+observables: an orphaned grandchild after `close()` returns, and `close()`
+itself burning its full 10s timeout budget instead of ~2-4s. Prior art
+re-checked this session: issue #680 (mcp add/remove hangs on non-TTY stdin)
+has an unrelated root cause (`inquirer.prompt` blocking, not the spawn/pipe
+mechanism) — confirmed distinct, not a duplicate. Issue #779 is about
+registry ID state, unrelated. The repo is active on issues (several filed in
+September) but not merging contributions (PRs #791, #793, #798, #804, #811
+all open since late June), which bounds how much to invest: this arming
+effort is for the research artifact (an instrument finding something nobody
+filed), not for a mergeable fix.
+
+Objective for this stage: convert the smithery-cli finding from a
+reproduction of extracted logic into either (a) a result that passes this
+benchmark's own arming gate, driving the SUT's real, shipped, exported entry
+point (`serveUplink`) through to the `close()` path, or (b) an explicit,
+reportable methodological limit if that cannot be done within bounded effort.
+A mock WebSocket server standing in for Smithery's cloud uplink relay is
+required to reach `serveUplink` at all, since it is the only exported path
+into `createStdioLocalPeer`.
 
 Acceptance gates:
-1. Scenario arms cleanly: FAIL against unpatched typescript-sdk main in 10/10
-   runs, PASS against main+pr2024 in 10/10 runs, zero flakiness either
-   direction (same bar as HANDOFF.md's scenario-1 gates, now applied
-   cross-language).
-2. The residual the FAIL trials catch is specifically the orphaned grandchild
-   (the real MCP server process spawned through a wrapper), not the direct
-   child, closing HANDOFF.md's still-open acceptance gate 2 on real SDK code.
-3. Negative control (wrong trial tag) proven to trip the arming gate for this
-   adapter too, not assumed to inherit from the Python adapter's proof.
-4. The evidence bundle for one FAIL run contains residual PIDs with cmdlines,
-   timings, and a working one-line repro, generated and verified the same way
-   as the Python scenario's (Bash-executed, not eyeballed from source).
-5. `ruff check src/` clean for the Python-side scenario declaration and any
-   runner/sut changes. The Node adapter has no equivalent Python lint gate;
-   note whatever the TS SDK's own lint/format config would flag, without
-   necessarily running it (no contributor obligation here, just don't ship
-   code that would visibly fail it).
+1. The mock relay drives the actual `serveUplink()` export (imported from
+   the pinned checkout, not reimplemented) through `start()`, at least one
+   message round-trip, and `close()`. If the mock cannot get the harness to
+   call the SUT's real code by the stop condition below, stop and report the
+   limit; do not force a partial mock into arming.
+2. Control pair: broken control is the pinned commit as shipped. Fixed
+   control is a constructed patch (spawn with `detached: true` on POSIX,
+   `close()` signals the process group, mirroring
+   `mcp/os/posix/utilities.py`'s `terminate_posix_process_tree`), named in
+   its ControlFixture as constructed, not upstream-sourced, matching the
+   pr3502/pr3218/pr2024 naming convention's opposite case.
+3. Both observables measured, not just the residual: ProcessTreeProbe for
+   the surviving grandchild, and `close()` wall-clock duration for the
+   10s-vs-expected delta (the stronger, contract-independent signal, since
+   it needs no stated guarantee to be visibly wrong).
+4. If armed: unanimous broken/fixed across N trials, negative control proven
+   to trip, evidence bundle with residual pids, cmdlines, timings, pinned
+   commit, working repro. If not armed within the stop condition: DISCOVERY.md
+   states plainly that arming was not reached, why, and that this is a
+   reportable limit of the benchmark, not a hidden failure.
+5. `ruff check src/` clean; no changes to the two already-armed scenarios.
+
+Stop condition, binding: mocking a cloud relay can eat unbounded time. If the
+mock cannot reach the real `close()` path within a bounded effort in this
+session, stop and report the finding cannot be armed at this bar rather than
+forcing a partial mock through. An arming gate that passed because the
+harness faked the path under test is worse than no finding.
 
 Verification:
-- `gh issue view 2023 --repo modelcontextprotocol/typescript-sdk` and
-  `gh pr view 2024 --repo modelcontextprotocol/typescript-sdk` (done, see
-  Baseline).
-- `git apply --check` of the vendored patch against the pinned typescript-sdk
-  commit, from a worktree, mirroring sut.py's existing pattern.
 - `ruff check src/`.
-- `pytest tests/` for the new adapter's arming-gate tests.
-- `git status` shows only files in the allowed scope, plus suts/typescript-sdk
-  (gitignored), node_modules and any pnpm store (gitignored).
+- `pytest tests/test_discovery_smithery_cli.py` if armed.
+- `git status` shows only files in the allowed scope, plus suts/smithery-cli
+  (already present, gitignored), any new .venvs/.worktrees/node_modules
+  entries (gitignored).
+- DISCOVERY.md's smithery-cli section updated in place with either the armed
+  result or the stated limit, cross-checked against actual trial output.
 
 Status: active

@@ -1,0 +1,70 @@
+diff --git a/src/lib/uplink.ts b/src/lib/uplink.ts
+index de34671..cefaa73 100644
+--- a/src/lib/uplink.ts
++++ b/src/lib/uplink.ts
+@@ -596,6 +596,11 @@ function createStdioLocalPeer(
+ 					}),
+ 					stdio: ["pipe", "pipe", "inherit"],
+ 					shell: false,
++					// Constructed fix, mirroring mcp/os/posix/utilities.py's
++					// terminate_posix_process_tree: the direct child leads its own
++					// process group so close() can signal every descendant, not
++					// only this one PID.
++					detached: process.platform !== "win32",
+ 				})
+ 
+ 				child.on("error", (error) => {
+@@ -650,12 +655,12 @@ function createStdioLocalPeer(
+ 
+ 			await Promise.race([closePromise, delay(STDIO_KILL_TIMEOUT_MS)])
+ 			if (processToClose.exitCode === null) {
+-				processToClose.kill("SIGTERM")
++				await killProcessGroup(processToClose, "SIGTERM")
+ 			}
+ 
+ 			await Promise.race([closePromise, delay(STDIO_KILL_TIMEOUT_MS)])
+ 			if (processToClose.exitCode === null) {
+-				processToClose.kill("SIGKILL")
++				await killProcessGroup(processToClose, "SIGKILL")
+ 			}
+ 		},
+ 	}
+@@ -762,6 +767,38 @@ async function writeToChild(
+ 	})
+ }
+ 
++// Constructed fix, mirroring mcp/os/posix/utilities.py's
++// terminate_posix_process_tree: signal the whole process group (the
++// negative pid), not only the direct child, since createStdioLocalPeer now
++// spawns with detached: true so the child leads its own group. Polls with
++// signal 0 the same way the Python side does, since a group only
++// disappears once every member is dead and reaped.
++async function killProcessGroup(
++	child: ReturnType<typeof spawn>,
++	signal: NodeJS.Signals,
++): Promise<void> {
++	const pid = child.pid
++	if (pid === undefined || process.platform === "win32") {
++		child.kill(signal)
++		return
++	}
++	try {
++		process.kill(-pid, signal)
++	} catch {
++		// Group already gone.
++		return
++	}
++	const deadline = Date.now() + STDIO_KILL_TIMEOUT_MS
++	while (Date.now() < deadline) {
++		try {
++			process.kill(-pid, 0)
++		} catch {
++			return
++		}
++		await delay(10)
++	}
++}
++
+ function waitForProcessExit(child: ReturnType<typeof spawn>): Promise<void> {
+ 	return new Promise((resolve) => {
+ 		child.once("close", () => resolve())

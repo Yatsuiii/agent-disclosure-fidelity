@@ -29,12 +29,14 @@ from shutdown_integrity.scenario import ControlFixture
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SUT_CHECKOUT = REPO_ROOT / "suts" / "mcp-python-sdk"
 TS_SUT_CHECKOUT = REPO_ROOT / "suts" / "typescript-sdk"
+SMITHERY_CLI_SUT_CHECKOUT = REPO_ROOT / "suts" / "smithery-cli"
 WORKTREES_DIR = REPO_ROOT / ".worktrees"
 VENVS_DIR = REPO_ROOT / ".venvs"
 UV_CACHE_DIR = REPO_ROOT / ".uv-cache"
 NPM_CACHE_DIR = REPO_ROOT / ".npm-cache"
 PNPM_STORE_DIR = REPO_ROOT / ".pnpm-store"
 PNPM_VERSION = "10.26.1"  # must match typescript-sdk's own package.json#packageManager
+SMITHERY_CLI_PNPM_VERSION = "10.27.0"  # must match smithery-cli's own package.json#packageManager
 
 # Building only these two workspace packages (plus their deps) is enough:
 # tsdown bundles @modelcontextprotocol/core-internal straight into each
@@ -145,9 +147,9 @@ def prepare(fixture: ControlFixture) -> PreparedFixture:
     return PreparedFixture(name=fixture.name, source_dir=source_dir, python=python)
 
 
-def _pnpm(args: list[str], cwd: Path) -> None:
+def _pnpm(args: list[str], cwd: Path, pnpm_version: str = PNPM_VERSION) -> None:
     _run(
-        ["npx", "--yes", f"pnpm@{PNPM_VERSION}", *args, "--store-dir", str(PNPM_STORE_DIR)],
+        ["npx", "--yes", f"pnpm@{pnpm_version}", *args, "--store-dir", str(PNPM_STORE_DIR)],
         cwd=cwd,
         env=_npm_env(),
     )
@@ -176,4 +178,27 @@ def prepare_node(fixture: ControlFixture) -> PreparedNodeFixture:
         for target in _TS_BUILD_TARGETS:
             _pnpm(["--filter", target, "build"], cwd=source_dir)
 
+    return PreparedNodeFixture(name=fixture.name, source_dir=source_dir)
+
+
+_SMITHERY_CLI_BUILT_MARKER = Path("node_modules") / ".bin" / "tsx"
+
+
+def prepare_smithery_cli(fixture: ControlFixture) -> PreparedNodeFixture:
+    """Idempotent, same contract as prepare()/prepare_node(). A single-package
+    pnpm project, unlike the TS SDK's workspace: `pnpm install` alone is
+    enough, no build step, since the adapter runs the SUT's own TypeScript
+    source directly via `tsx` (matching how the SUT's own test suite imports
+    it, e.g. src/lib/__tests__/uplink.test.ts) rather than importing a built
+    bundle. Reuses PreparedNodeFixture: there is equally no per-fixture
+    executable here, `tsx` resolves from the prepared source_dir's own
+    node_modules regardless of which fixture is active.
+    """
+    source_dir = _prepare_worktree(fixture, SMITHERY_CLI_SUT_CHECKOUT, WORKTREES_DIR)
+    if not (source_dir / _SMITHERY_CLI_BUILT_MARKER).exists():
+        _pnpm(
+            ["install", "--frozen-lockfile", "--ignore-scripts"],
+            cwd=source_dir,
+            pnpm_version=SMITHERY_CLI_PNPM_VERSION,
+        )
     return PreparedNodeFixture(name=fixture.name, source_dir=source_dir)
