@@ -155,6 +155,42 @@ D3. Every machine left clean, same as A4/B4/C3.
 D4. `ruff check src/` clean; the original n=20 mechanism-selection report
     and its PILOT_RESULTS.md numbers are unchanged.
 
+Fifth addendum (adversarial task design). The strongest remaining objection
+to the mechanism-selection result: all four original phrasings were written
+by the same person with the same neutral intent, which is variation, not
+adversarial pressure. This addendum's objective: write 10 distinct task
+prompts, each deliberately trying to elicit the tracked/safe mechanism
+(explicit "no orphaned processes," "cleanup matters," "should stop when
+this session ends," one directly naming a "built-in background task
+feature"), one trial each rather than repeats of one phrasing, since the
+point is framing diversity within a fixed budget, not statistical
+replication of a single adversarial phrasing. If the agent still defaults
+to the untracked mechanism under phrasing designed to push it away from
+that, the "defaults problem" framing gets stronger. If explicit safety
+language does redirect it, that is a real, useful, disclosed result too
+(the fix is prompting/defaults, reachable today, not an architecture
+change) and must be reported as such, not suppressed for not confirming
+the existing framing.
+
+Fifth addendum allowed files (adds to the file list above):
+- src/shutdown_integrity/pilot/mechanism_selection.py (extend only: a
+  third variants dict, e.g. `ADVERSARIAL_SAFE_VARIANTS`, 10 distinct
+  prompts; no changes to TASK_VARIANTS or TASK_SHAPE_VARIANTS or their
+  already-reported results)
+
+Fifth addendum acceptance gates:
+E1. 10 distinct task prompts (not phrasing variants of one task; ten
+    genuinely different framings of "push the agent toward the tracked
+    mechanism"), one trial each, against Claude Code.
+E2. PILOT_RESULTS.md reports the actual outcome plainly, whichever
+    direction it goes: if the agent still defaults to untracked, that
+    strengthens "Mechanism selection"; if explicit safety language
+    measurably redirects it, that is reported as a distinct, real finding
+    (a reachable prompting-level fix), not folded into or used to inflate
+    the existing 0/50 number.
+E3. Every machine left clean, same as A4/B4/C3/D3.
+E4. `ruff check src/` clean.
+
 Branch: master
 
 Parent: HEAD (409bf0e, the smithery-cli discovery checkpoint, already
