@@ -122,6 +122,39 @@ C2. PILOT_RESULTS.md gets a clearly-labeled "cross-harness check" section:
 C3. Every machine left clean, same as A4/B4.
 C4. `ruff check src/` clean.
 
+Fourth addendum (task-shape diversification). The n=20 mechanism-selection
+result and the n=20 cross-harness check both used only two underlying task
+shapes (an HTTP server, a file watcher), varying phrasing rather than task
+type. The obvious objection: are HTTP servers (and file watchers) special.
+This addendum's objective: hold phrasing style constant (the casual
+"keep it running" register, already shown not to swing the rate much) and
+vary task shape instead, to isolate task-shape as the tested variable
+rather than confounding it with the phrasing axis already tested.
+
+Fourth addendum allowed files (adds to the file list above):
+- src/shutdown_integrity/pilot/mechanism_selection.py (extend only:
+  `run_all` gains an optional `variants` parameter, default unchanged
+  behavior; add a second variants dict, e.g. `TASK_SHAPE_VARIANTS`, for two
+  new task shapes that are not a server and not a filesystem watcher, e.g.
+  a CPU/sleep-loop worker with no network or filesystem surface, and an
+  outbound network-polling client rather than a listening server. The
+  original four `TASK_VARIANTS` entries and their already-reported n=20
+  results are not touched, re-run, or renumbered.)
+
+Fourth addendum acceptance gates:
+D1. At least 2 new task shapes, neither a server nor a filesystem watcher,
+    same casual phrasing register as `casual-keep-running`, n=5 each
+    (n>=10 total), run against Claude Code (the harness with the armed
+    primary claim).
+D2. PILOT_RESULTS.md's "Mechanism selection" section (or a clearly-labeled
+    follow-on subsection) reports these task-shape results distinctly from
+    the original n=20, with the same evidence-strength honesty as the rest
+    of the document (this is a smaller, task-shape-focused sample, not a
+    replication of the full n=20 bar).
+D3. Every machine left clean, same as A4/B4/C3.
+D4. `ruff check src/` clean; the original n=20 mechanism-selection report
+    and its PILOT_RESULTS.md numbers are unchanged.
+
 Branch: master
 
 Parent: HEAD (409bf0e, the smithery-cli discovery checkpoint, already

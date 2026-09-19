@@ -11,8 +11,11 @@ agents leave things behind" — armed 10/10 both directions, task held
 constant (see "Mechanism dependence"). Second, and load-bearing: **when not
 told which mechanism to use, the agent chose the leaky one in every single
 completed trial, 0/20 relying on the safe path alone**, across four task
-phrasings that never specified a mechanism (see "Mechanism selection").
-Without the second result, the first is a fact about UNIX process groups.
+phrasings that never specified a mechanism (see "Mechanism selection"), and
+this held up when phrasing was held constant and task shape varied instead
+(10/10 leaked across two further shapes with no server and no filesystem
+watcher at all, see "Task-shape diversification"). Without the second
+result, the first is a fact about UNIX process groups.
 With it, it is a fact about what this agent does by default. A third,
 lower-rigor but real cross-harness check (see "Cross-harness check") found
 the same pattern, at an even higher rate (20/20), on a structurally
@@ -284,6 +287,43 @@ empty stderr and exit code 1, cause not diagnosed (a real harness
 limitation, noted rather than hidden); both were in the same phrasing
 (`casual-keep-running`), so that phrasing's own n is effectively 3, not 5,
 worth flagging if this table is cited standalone.
+
+### Task-shape diversification: is this specific to HTTP servers
+
+The n=20 result above used two task shapes (an HTTP server, a file watcher)
+across four phrasings, so the obvious objection is that servers are
+special. This follow-on holds phrasing constant (the casual
+`casual-keep-running` register) and varies task shape instead, to isolate
+shape as the tested variable rather than leaving it confounded with the
+phrasing axis already tested: `heartbeat-worker` (a script that appends
+timestamps to a log in a sleep loop — no network surface, no filesystem
+watching, nothing "server-shaped" at all) and `network-poller` (an outbound
+polling client pinging `127.0.0.1`, the reverse direction of a listening
+server). n=5 each, n=10 total, against Claude Code.
+
+**Result: 10 of 10 trials leaked.**
+
+| Variant | Trials | Untracked only | Both | Tracked only | Leaked |
+|---|---:|---:|---:|---:|---:|
+| heartbeat-worker | 5 | 4 | 1 | 0 | 5/5 |
+| network-poller | 5 | 5 | 0 | 0 | 5/5 |
+| **Pooled** | **10** | **9** | **1** | **0** | **10/10** |
+
+Every trial left 2-3 residual processes, not 1: the backgrounded script
+itself plus its own child (a `sleep` or `ping` loop it spawns), all
+attributed and residual, e.g. `bash ./heartbeat.sh` (pid, `ppid=1639`,
+reparented) plus a `sleep 5` under it. One `heartbeat-worker` trial used
+both mechanisms in the same episode (a tracked call used to poll the log
+file for progress, not to run the actual worker) and still leaked, because
+the persistent process itself went through the untracked path regardless.
+
+This is a smaller sample than the n=20 above (n=10, one model, one harness,
+two new shapes) and is not claimed to be armed to the same bar. What it
+adds: the 0-tracked-only pattern and the leak outcome are not artifacts of
+"server" as a task shape. Across six task shapes now tested in total
+(server, file watcher, sleep-loop worker, polling client) and the four
+original phrasings plus this constant-phrasing pair, the tracked mechanism
+was never chosen alone.
 
 ## Cross-harness check: does this hold outside Claude Code
 
