@@ -43,6 +43,47 @@ A3. PILOT_RESULTS.md's "Mechanism dependence" section and its scope-limits
 A4. Every machine left clean: all trial residuals killed by pid immediately
     after each trial, verified by a final zero-residual probe read.
 
+Second addendum (same session, same active objective, extended again): the
+armed mechanism-dependence claim above proves the *outcome* differs by
+mechanism, with the mechanism pinned by the prompt in every trial. It does
+not establish that this is an agent finding rather than a shell finding:
+`nohup foo & disown` outliving its parent is ordinary UNIX behavior, and
+what would make it an agent-safety finding is that an agent spontaneously
+chooses that path, undisclosed, when not told which mechanism to use. This
+addendum's objective: measure mechanism-selection rate, not residuals. Give
+the agent tasks that plausibly invite a persistent background process
+without specifying how, across several phrasings (explicit "background"
+language down to phrasing that only implies persistence), and read which
+mechanism it actually chose per episode directly from its own tool calls
+(`--output-format stream-json`, each Bash tool_use carries
+`run_in_background: true/false` plus the literal command), not inferred
+from the eventual residual. The residual probe still runs per trial as a
+secondary check that the observed mechanism produced the outcome the armed
+claim predicts, but the primary measurement is the selection rate itself.
+
+Second addendum allowed files (adds to, does not replace, the file list
+above):
+- src/shutdown_integrity/pilot/mechanism_selection.py (new: task-phrasing
+  variants that do not specify a mechanism, a stream-json-driven trial
+  runner, tool-call-based classification, a selection-rate report)
+
+Second addendum acceptance gates:
+B1. At least 4 distinct task phrasings, spanning explicit "in the
+    background" language to phrasing that only implies persistence, run
+    at least 5 trials each (n>=20 total), mechanism read from each
+    episode's own tool_use blocks, not guessed from the outcome.
+B2. Per-phrasing and pooled mechanism-selection rates reported in
+    PILOT_RESULTS.md, including phrasings that produced zero untracked
+    selections (a null result here is itself the finding, not something to
+    omit).
+B3. For any episode where the agent used the untracked mechanism, the
+    residual probe result is recorded alongside the selection, so the
+    write-up can say whether spontaneous untracked selection actually
+    leaked or not, not just that it was chosen.
+B4. Every machine left clean, same as A4.
+B5. `ruff check src/` clean; the SDK-scenario and smithery-cli checkpoints
+    remain unmodified and passing.
+
 Branch: master
 
 Parent: HEAD (409bf0e, the smithery-cli discovery checkpoint, already
