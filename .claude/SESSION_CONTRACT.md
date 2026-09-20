@@ -72,6 +72,13 @@ Second addendum acceptance gates:
 G1. The licence terms in LICENSE are byte-identical to an existing verbatim
     Apache-2.0 text already on this machine, diffed rather than retyped, so
     no clause is silently altered. Only the copyright notice differs.
+    Correction after first push: the initial source was a 182-line copy with
+    the APPENDIX stripped, and GitHub's detector read the result as
+    NOASSERTION/Other, so the repository sidebar contradicted the README's
+    licence claim. Replaced with the canonical 201-line text (APPENDIX
+    intact), which differs from its source on exactly one line, the
+    copyright notice. Verified by diff, and by re-querying the GitHub
+    licence API after pushing rather than assuming the fix worked.
 G2. `pyproject.toml` declares the licence and the editable install still
     resolves, verified in a throwaway venv, not assumed.
 G3. No source file under src/ or tests/ is modified.
