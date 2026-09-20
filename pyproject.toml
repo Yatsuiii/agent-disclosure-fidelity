@@ -1,8 +1,10 @@
 [project]
-name = "shutdown-integrity"
+name = "agent-disclosure-fidelity"
 version = "0.0.1"
-description = "Benchmark for session termination and isolation guarantees in agent runtime SDKs"
+description = "Measures whether an agent's report of what it did matches what it actually did"
 requires-python = ">=3.11"
+readme = "README.md"
+license = "Apache-2.0"
 dependencies = ["psutil>=5.9"]
 
 [project.optional-dependencies]
