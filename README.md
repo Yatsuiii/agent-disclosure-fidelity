@@ -1,3 +1,5 @@
+> **Moved.** This project now lives in [`Yatsuiii/reproduction-receipts/agent-disclosure-fidelity`](https://github.com/Yatsuiii/reproduction-receipts/tree/main/agent-disclosure-fidelity), with its full history. This repository is archived and kept so existing links keep working. New work happens there.
+
 # Agent Disclosure Fidelity
 
 This measures whether an agent's report of what it did matches what it
